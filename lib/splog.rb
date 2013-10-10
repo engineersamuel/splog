@@ -242,7 +242,7 @@ module Splog
           options[:key] = setting
         end
 
-        parser.on("-d", "--database [STR]", "Specify a database reference defined in ~/.splog.yml to write to") do |ext|
+        parser.on('-d', '--database [STR]', 'Specify a database reference defined in ~/.splog.yml to write to') do |ext|
           options[:db_ref_name] = ext || nil
         end
 

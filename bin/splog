@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+require 'splog'
+parser = Splog::LogParser.new
+parser.cli(ARGV)
