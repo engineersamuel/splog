@@ -27,7 +27,7 @@ jboss_log4j_common:
     - '(?<Priority>WARN|ERROR|INFO|TRACE|DEBUG)'
     - '\[(?<Category>.*?)\]'
     - '\((?<Thread>.*?)\)'
-    - '(?<Message>\tat\s.*?)'
+    - '(?<Message>\tat\s.*)$'
 
   # Define the hash key to read from, otherwise default to the entire line
   matched_append_keyname_source: 'Message'

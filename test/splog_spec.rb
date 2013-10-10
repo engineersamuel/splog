@@ -108,18 +108,17 @@ describe Splog::LogParser do
     # Get an enumerable from the parser
     pe = parser.parse(e)
     log_entry_one = pe.next
-    log_entry_one.should include(
-     'Category' => 'org.jboss.as.security',
-     'Date' => '03 Oct 2013 18:33:00,380',
-     'Message' => 'JBAS013171: Activating Security Subsystem',
-     'Priority' => 'INFO',
-     'Thread' => 'ServerService Thread Pool -- 36',
-     )
+    log_entry_one['Category'].should eql('org.jboss.as.security')
+    log_entry_one['Date'].should eql('03 Oct 2013 18:33:00,380')
+    log_entry_one['Message'].should eql("JBAS013171: Activating Security Subsystem\n")
+    log_entry_one['Priority'].should eql('INFO')
+    log_entry_one['Thread'].should eql('ServerService Thread Pool -- 36')
+
     log_entry_two = pe.next
     log_entry_two.should include(
      'Category' => 'org.jboss.as.webservices',
      'Date' => '03 Oct 2013 18:33:00,419',
-     'Message' => 'JBAS015537: Activating WebServices Extension',
+     'Message' => "JBAS015537: Activating WebServices Extension\n",
      'Priority' => 'DEBUG',
      'Thread' => 'ServerService Thread Pool -- 32',
     )
@@ -151,32 +150,29 @@ describe Splog::LogParser do
     # Get an enumerable from the parser
     pe = parser.parse(e)
     log_entry_one = pe.next
-    log_entry_one.should include(
-     'Category' => 'org.jboss.as.ejb3.deployment.processors.EjbJndiBindingsDeploymentUnitProcessor',
-     'Date' => '03 Oct 2013 20:19:42,591',
-     'Message' => "JNDI bindings for session bean named Z are as follows:\tjava:global/a/b/c!com.a.b.c.D\n\tjava:app/x/y!com.x.y.Z\n",
-     'Priority' => 'INFO',
-     'Thread' => 'MSC service thread 1-12',
-    )
+
+    log_entry_one['Category'].should eql('org.jboss.as.ejb3.deployment.processors.EjbJndiBindingsDeploymentUnitProcessor')
+    log_entry_one['Date'].should eql('03 Oct 2013 20:19:42,591')
+    log_entry_one['Message'].should eql("JNDI bindings for session bean named Z are as follows:\n\tjava:global/a/b/c!com.a.b.c.D\n\tjava:app/x/y!com.x.y.Z\n")
+    log_entry_one['Priority'].should eql('INFO')
+    log_entry_one['Thread'].should eql('MSC service thread 1-12')
   end
-  #it 'jboss server.log log4j default multiline matched log lines' do
-  #  # Match subsequent lines and add them to a previous line
-  #
-  #  dot_file_path = File.expand_path('examples/jboss/.splog.yml')
-  #  server_log_name = File.expand_path('examples/jboss/multiline_match_server.log')
-  #
-  #  parser = Splog::LogParser.new
-  #  parser.cli(['-p', 'jboss_log4j_common','-f', server_log_name, '-c', dot_file_path])
-  #  e = parser.read_log_file(parser.options[:file_name])
-  #  # Get an enumerable from the parser
-  #  pe = parser.parse(e)
-  #  log_entry_one = pe.next
-  #  log_entry_one.should include(
-  #     'Category' => 'stderr',
-  #     'Date' => '03 Oct 2013 20:16:55,308',
-  #     'Message' => "java.lang.IllegalStateException: EJBCLIENT000025: No EJB receiver available for handling\n\tat org.jboss.ejb.client.EJBClientContext\n\tat org.jboss.ejb.client.ReceiverInterceptor",
-  #     'Priority' => 'ERROR',
-  #     'Thread' => 'MSC service thread 1-3',
-  #   )
-  #end
+  it 'jboss server.log log4j default multiline matched log lines' do
+    # Match subsequent lines and add them to a previous line
+    test_dir = Dir.pwd.match(/.*?splog$/) ? 'test/' : ''
+    dot_file_path = File.expand_path("#{test_dir}examples/jboss/.splog.yml")
+    server_log_name = File.expand_path("#{test_dir}examples/jboss/multiline_match_server.log")
+
+    parser = Splog::LogParser.new
+    parser.cli(['-p', 'jboss_log4j_common','-f', server_log_name, '-c', dot_file_path])
+    e = parser.read_log_file(parser.options[:file_name])
+    # Get an enumerable from the parser
+    pe = parser.parse(e)
+    log_entry_one = pe.next
+    log_entry_one['Category'].should eql('stderr')
+    log_entry_one['Date'].should eql('03 Oct 2013 20:16:55,308')
+    log_entry_one['Message'].should eql("java.lang.IllegalStateException: EJBCLIENT000025: No EJB receiver available for handling\n\tat org.jboss.ejb.client.EJBClientContext\n\tat org.jboss.ejb.client.ReceiverInterceptor\n")
+    log_entry_one['Priority'].should eql('ERROR')
+    log_entry_one['Thread'].should eql('MSC service thread 1-3')
+  end
 end
