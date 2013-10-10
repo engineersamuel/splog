@@ -35,16 +35,16 @@ module Splog
     def load_dot_file
       # yml config
       dot_file = @options[:dot_file_name] || '~/.splog.yml'
-      puts "Loading dot_file from #{dot_file}"
+      #puts "Loading dot_file from #{dot_file}"
       begin
         prop_list = YAML.load_file(File.expand_path(dot_file))
         prop_list.each do |key, value|
           @config[key] = value
         end
       rescue => detail
-        #$stderr.puts $!
-        #detail.backtrace.each { |e| $stderr.puts e}
-        $stderr.puts 'Unable to find ~/.splog.yml'
+        $stderr.puts "Unable to find or read #{dot_file}\n"
+        $stderr.puts $!
+        exit
       end
     end
 
@@ -215,9 +215,11 @@ module Splog
 
     def cli(args=nil)
       options = {
-          :append => true
+        :append => true,
+        :output => 'stdout'
       }
       opts = OptionParser.new do |parser|
+        parser.banner = 'Usage: splog [options]'
 
         parser.separator ''
         parser.separator 'Parse logs in arbitrary formats defined in ~/.splog.yml:'
@@ -232,6 +234,10 @@ module Splog
 
         parser.on('-c', '--config PATH', 'Optional dot file path.  Defaults to ~/.splog.yml') do |setting|
           options[:dot_file_name] = setting ? File.expand_path(setting) : setting
+        end
+
+        parser.on('-o', '--output [stdout|filename]', 'Defaults to stdout') do |setting|
+          options[:output] = setting ? setting : options[:output]
         end
 
         parser.on('--no-append', "When a line doesn't match the regex, don't append it to the previously matched line. The default is to append.") do |setting|
@@ -258,32 +264,85 @@ module Splog
         #end
       end
 
-      opts.parse!(args || ARGV)
-      @options = options
-      #ap options
+      begin
+        if args and not args.length == 0
+          opts.parse!(args)
+        else
+          ARGV << '-h' if ARGV.size == 0
+          opts.parse!(ARGV)
+        end
+      rescue OptionParser::ParseError
+        $stderr.print "Error: #{$!}\n"
+        exit
+      end
 
-      # At this point the options are loaded so load the dot file before continuing so the config can be properly
-      # Loaded from the dot file and further options determined
-      load_dot_file
+      if options[:file_name] and options[:pattern_name]
+        @options = options
+        #ap options
 
-      set_pattern(options)
-      set_mapping(options)
+        # At this point the options are loaded so load the dot file before continuing so the config can be properly
+        # Loaded from the dot file and further options determined
+        load_dot_file
 
-      #ap @mapping
-      read_log_file(options[:file_name])
+        set_pattern(options)
+        set_mapping(options)
+
+        #ap @mapping
+        # Get the enum from the file
+        e = read_log_file(options[:file_name])
+
+        # outputting to stdout simply prints 1 parsed line per line
+        if options[:output] == 'stdout'
+          # Parse each line of the file through the log parser
+          parse(e).each do |parsed_line|
+            $stdout.write parsed_line.to_s
+            $stdout.write "\n"
+          end
+
+        # outputting to json will construct a valid json array so you can do something like splog ... | prettyjson
+        elsif options[:output] == 'json'
+          # Parse each line of the file through the log parser
+          $stdout.write '['
+          pe = parse(e)
+          begin
+            while true
+              parsed_line = pe.next
+              $stdout.write parsed_line.to_json
+              $stdout.write ',' unless pe.peek.nil?
+            end
+          rescue => detail
+            nil
+          end
+          # If a \n is not written a % shows on the console output thus breaking the json array
+          $stdout.write "]\n"
+
+        # Otherwise return the enumerator back up to be iterated over either in testing or in a program requiring this code
+        else
+          return read_log_file(options[:file_name])
+        end
+      end
     end
 
     def set_pattern(options)
       @pattern_name = options[:pattern_name]
-      @pattern = @config[options[:pattern_name]]['regex']
-      #@pattern_name = options['pattern_name']
-      #@pattern = @config[options['pattern_name']]['regex']
+      begin
+        @pattern = @config[options[:pattern_name]]['regex']
+      rescue => detail
+        puts "No pattern matching '#{options[:pattern_name]}' found.  Please choose another name or define this pattern in the your .splog.yaml"
+        exit
+      end
     end
 
     def set_mapping(options)
-      tmp = {}
-      @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
-      @mapping = tmp
+      begin
+        tmp = {}
+        @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
+        @mapping = tmp
+      rescue => detail
+        puts "Unable to read the mapping in your .splog.yaml configuration.  Please reference https://github.com/engineersamuel/splog for proper formatting."
+        $stderr.puts $!
+        exit
+      end
     end
   end
 end

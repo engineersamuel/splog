@@ -53,7 +53,7 @@ describe Splog::LogParser do
     LOG
     parser = Splog::LogParser.new
     parser.config = config
-    options = {:pattern_name => 'apache_common'}
+    options = {:pattern_name => 'apache_common', :output => 'test'}
     parser.set_pattern(options)
     parser.set_mapping(options)
     # Get an enumerable from the string, ie enumerate the lines
@@ -108,7 +108,7 @@ describe Splog::LogParser do
     LOG
     parser = Splog::LogParser.new
     parser.config = config
-    options = {:pattern_name => 'jboss_log4j_common'}
+    options = {:pattern_name => 'jboss_log4j_common', :output => 'test'}
     parser.set_pattern(options)
     parser.set_mapping(options)
     # Get an enumerable from the string, ie enumerate the lines
@@ -159,7 +159,7 @@ describe Splog::LogParser do
     LOG
     parser = Splog::LogParser.new
     parser.config = config
-    options = {:pattern_name => 'jboss_log4j_common'}
+    options = {:pattern_name => 'jboss_log4j_common', :output => 'test'}
     parser.set_pattern(options)
     parser.set_mapping(options)
     # Get an enumerable from the string, ie enumerate the lines
@@ -179,11 +179,12 @@ describe Splog::LogParser do
   # Match subsequent lines and add them to a previous line
   it 'jboss server.log log4j default multiline matched log lines' do
     test_dir = Dir.pwd.match(/.*?splog$/) ? 'test/' : ''
-    dot_file_path = File.expand_path("#{test_dir}examples/jboss/.splog.yml")
-    server_log_name = File.expand_path("#{test_dir}examples/jboss/multiline_match_server.log")
+    dot_file_path = File.expand_path("./#{test_dir}examples/jboss/.splog.yml")
+    server_log_name = File.expand_path("./#{test_dir}examples/jboss/multiline_match_server.log")
 
+    p "pwd: #{Dir.pwd}, test_dir: #{test_dir}, dot_file_path: #{dot_file_path}"
     parser = Splog::LogParser.new
-    parser.cli(['-p', 'jboss_log4j_common','-f', server_log_name, '-c', dot_file_path])
+    parser.cli(['-p', 'jboss_log4j_common','-f', server_log_name, '-c', dot_file_path, '-o', 'test'])
     e = parser.read_log_file(parser.options[:file_name])
     # Get an enumerable from the parser
     pe = parser.parse(e)
@@ -203,7 +204,7 @@ describe Splog::LogParser do
     server_log_name = File.expand_path("#{test_dir}examples/apache/access_log")
 
     parser = Splog::LogParser.new
-    parser.cli(['-p', 'apache_common','-f', server_log_name, '-c', dot_file_path])
+    parser.cli(['-p', 'apache_common','-f', server_log_name, '-c', dot_file_path, '-o', 'test'])
     e = parser.read_log_file(parser.options[:file_name])
     # Get an enumerable from the parser
     pe = parser.parse(e)
@@ -218,7 +219,7 @@ describe Splog::LogParser do
     server_log_name = File.expand_path("#{test_dir}examples/apache/debug_error_log")
 
     parser = Splog::LogParser.new
-    parser.cli(['-p', 'apache_error','-f', server_log_name, '-c', dot_file_path])
+    parser.cli(['-p', 'apache_error','-f', server_log_name, '-c', dot_file_path, '-o', 'test'])
     e = parser.read_log_file(parser.options[:file_name])
     # Get an enumerable from the parser
     pe = parser.parse(e)
@@ -240,5 +241,21 @@ describe Splog::LogParser do
     log_entry_ten['Severity'].should eql('debug')
     log_entry_ten['Module'].should eql('ajp_header.c(290):')
     log_entry_ten['Message'].should eql("ajp_marshal_into_msgb: Header[30] [Connection] = [Keep-Alive]\n")
+  end
+
+  it 'should output a json array' do
+    # Match subsequent lines and add them to a previous line
+    test_dir = Dir.pwd.match(/.*?splog$/) ? 'test/' : ''
+    dot_file_path = File.expand_path("#{test_dir}examples/apache/.splog.yml")
+    server_log_name = File.expand_path("#{test_dir}examples/apache/simple_access_log")
+
+    parser = Splog::LogParser.new
+    parser.cli(['-p', 'apache_common','-f', server_log_name, '-c', dot_file_path, '-o', 'json'])
+    e = parser.read_log_file(parser.options[:file_name])
+    # Get an enumerable from the parser
+    pe = parser.parse(e)
+    parsed_lines = pe.to_a
+    parsed_lines.length.should eql(2)
+
   end
 end
