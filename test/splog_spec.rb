@@ -195,7 +195,33 @@ describe Splog::LogParser do
     log_entry_one['Message'].should eql("java.lang.IllegalStateException: EJBCLIENT000025: No EJB receiver available for handling\n\tat org.jboss.ejb.client.EJBClientContext\n\tat org.jboss.ejb.client.ReceiverInterceptor\n")
     log_entry_one['Priority'].should eql('ERROR')
     log_entry_one['Thread'].should eql('MSC service thread 1-3')
+
+    #03 Oct 2013 18:33:00,427 INFO  [org.jboss.as.connector.subsystems.datasources] (ServerService Thread Pool -- 57) JBAS010403: Deploying JDBC-compliant driver class org.h2.Driver (version 1.3)
+    log_entry_two = pe.next
+    log_entry_two['Category'].should eql('org.jboss.as.connector.subsystems.datasources')
+    log_entry_two['Date'].to_s.should eql('2013-10-03T18:33:00+00:00')
+    log_entry_two['Date'].should be_a(DateTime)
+    log_entry_two['Message'].should eql("JBAS010403: Deploying JDBC-compliant driver class org.h2.Driver (version 1.3)\n\n")
+    log_entry_two['Priority'].should eql('INFO')
+    log_entry_two['Thread'].should eql('ServerService Thread Pool -- 57')
   end
+
+  # Match subsequent lines and add them to a previous line
+  it 'jboss server.log matched and unmatched lines' do
+    test_dir = Dir.pwd.match(/.*?splog$/) ? 'test/' : ''
+    dot_file_path = File.expand_path("./#{test_dir}examples/jboss/.splog.yml")
+    server_log_name = File.expand_path("./#{test_dir}examples/jboss/multiline_match_unmatch_server.log")
+
+    p "pwd: #{Dir.pwd}, test_dir: #{test_dir}, dot_file_path: #{dot_file_path}"
+    parser = Splog::LogParser.new
+    parser.cli(['-p', 'jboss_log4j_common','-f', server_log_name, '-c', dot_file_path, '-o', 'test'])
+    e = parser.read_log_file(parser.options[:file_name])
+    # Get an enumerable from the parser
+    pe = parser.parse(e)
+    parsed_lines = pe.to_a
+    parsed_lines.length.should eql(4)
+  end
+
 
   it 'should properly hash the 50 lines in the sample access log' do
     # Match subsequent lines and add them to a previous line

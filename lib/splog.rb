@@ -132,32 +132,40 @@ module Splog
             parsed_line = parse_line(line)
 
             next_line = enum_ref.peek
-            # Pass in the 'matched_append_regex' if it exists so the next line can be evaluated in this context
-            parsed_next_line = @config[@pattern_name]['matched_append_regex'].nil? ? parse_line(next_line) : parse_line(next_line, {:parts => @config[@pattern_name]['matched_append_regex']})
+            # Pass in the 'match_forward_regex' if it exists so the next line can be evaluated in this context
+            parsed_next_line = @config[@pattern_name]['match_forward_regex'].nil? ? parse_line(next_line) : parse_line(next_line, {:parts => @config[@pattern_name]['match_forward_regex']})
 
             ############################################################################################################
-            # If the next line matches the matched_append_regex
+            # If the next line matches the match_forward_regex
             ############################################################################################################
-            if parsed_next_line and @config[@pattern_name]['matched_append_regex']
+            if parsed_next_line and @config[@pattern_name]['match_forward_regex']
 
               # If the current_working_line does not yet exist, set it to the latest parsed line
               if current_working_line.nil? and parsed_line
                 current_working_line = parsed_line
               end
 
-              # Add to the matched_append_keyname_source from the matched_append_keyname_dest
-              current_working_line[@config[@pattern_name]['matched_append_keyname_source']] << parsed_next_line[@config[@pattern_name]['matched_append_keyname_source']]
+              # Add to the match_forward_keyname_source from the match_forward_keyname_dest
+              current_working_line[@config[@pattern_name]['match_forward_keyname_source']] << parsed_next_line[@config[@pattern_name]['match_forward_keyname_source']]
 
               # fast forward the enum one click to account for the peek
               enum_ref.next
 
-              # Read until StopIteration or the matched_append_regex no longer matches
+              # Read until StopIteration or the match_forward_regex no longer matches
               while true
-                line = enum_ref.next
-                parsed_line = @config[@pattern_name]['matched_append_regex'].nil? ? nil : parse_line(line, {:parts => @config[@pattern_name]['matched_append_regex']})
-                if parsed_line
-                  current_working_line[@config[@pattern_name]['matched_append_keyname_source']] << parsed_line[@config[@pattern_name]['matched_append_keyname_source']]
+                # Only peek here to not advance the enum unnecessarily
+                sub_line = enum_ref.peek
+                parsed_sub_line = @config[@pattern_name]['match_forward_regex'].nil? ? nil : parse_line(sub_line, {:parts => @config[@pattern_name]['match_forward_regex']})
+                if parsed_sub_line
+                  # if matched advance the enum and add the data to the current working line
+                  enum_ref.next
+                  current_working_line[@config[@pattern_name]['match_forward_keyname_source']] << parsed_sub_line[@config[@pattern_name]['match_forward_keyname_source']]
                 else
+                  # Otherwise we've reached the end of the matched pattern yield this match out
+                  y << current_working_line
+
+                  # Since that is yielded, set the current_working_line to nil so it has a fresh start for the next iter
+                  current_working_line = nil
                   break
                 end
               end
@@ -172,11 +180,19 @@ module Splog
 
               # Read until StopIteration or a new parsed line is found
               while true
-                line = enum_ref.next
-                parsed_line = parse_line(line)
-                if parsed_line.nil? and @config[@pattern_name]['unmatched_append_key_name']
-                  current_working_line[@config[@pattern_name]['unmatched_append_key_name']] << line
+                # Only peek here to not advance the enum unnecessarily
+                sub_line = enum_ref.peek
+                parsed_sub_line = parse_line(sub_line)
+                if parsed_sub_line.nil? and @config[@pattern_name]['unmatched_append_key_name']
+                  # if unmatched advance the enum and add the data to the current working line
+                  enum_ref.next
+                  current_working_line[@config[@pattern_name]['unmatched_append_key_name']] << sub_line
                 else
+                  # Otherwise we've reached the end of the matched pattern yield this match out
+                  y << current_working_line
+
+                  # Since that is yielded, set the current_working_line to nil so it has a fresh start for the next iter
+                  current_working_line = nil
                   break
                 end
               end
@@ -190,7 +206,7 @@ module Splog
         rescue StopIteration => e
           #if both current_working_line and parsed line yield them both as this situation can happen when peeking forward
           # After an unmatched line
-          if current_working_line and parsed_line
+          if current_working_line and parsed_line and current_working_line != parsed_line
             y << current_working_line
             y << parsed_line
           # Yield point for a successfully parsed line
@@ -236,8 +252,8 @@ module Splog
           options[:dot_file_name] = setting ? File.expand_path(setting) : setting
         end
 
-        parser.on('-o', '--output [stdout|filename]', 'Defaults to stdout') do |setting|
-          options[:output] = setting ? setting : options[:output]
+        parser.on('-o', '--output [stdout|filename]', 'Defaults to stdout, if specifying just -o then defaults to no standard output.') do |setting|
+          options[:output] = setting ? setting : nil
         end
 
         parser.on('--no-append', "When a line doesn't match the regex, don't append it to the previously matched line. The default is to append.") do |setting|
@@ -316,6 +332,16 @@ module Splog
           # If a \n is not written a % shows on the console output thus breaking the json array
           $stdout.write "]\n"
 
+        # outputting nothing if -o given with no value.  Useful for perf testing mainly
+        elsif options[:output] == nil
+          pe = parse(e)
+          begin
+            while true
+              pe.next
+            end
+          rescue => detail
+            nil
+          end
         # Otherwise return the enumerator back up to be iterated over either in testing or in a program requiring this code
         else
           return read_log_file(options[:file_name])

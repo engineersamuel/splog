@@ -1,0 +1,96 @@
+db_refs:
+    mongo:
+        type: 'mongo'
+        host: "127.0.0.1"
+        port: "27017"
+        user: ""
+        pass: ""
+        db: "splog"
+        collection: "logs"
+
+# Data Types supported ['DateTime' 'Integer', 'Float', 'String']
+apache_common:
+    db_key:
+        delim: '_'
+        # Define an array to create the compound key to define this log file
+        # This is most useful when combined saving the log to mongo
+        # You can specify any command line option here to be dereferenced
+        # In this case if I passed in -k prod -f access_log the key would be
+        # "prod_access_log"
+        values:
+            - '--key'
+            - '--file'
+        # If the filename is sufficiently complex like access_log_prod_1020PMEST
+        # I'd recommend something like below with -k prod_access_log to force the key
+        # to be easier to facilitate mongo searches
+        #values:
+        #    - '--key'
+
+    # Delimeter to join the regex array lines.  Apache access is space delimited
+    delim: '\s*'
+    # Regex to be joined to parse each log line
+    # ex. 127.0.0.1 - - [25/Sep/2013:15:35:27 -0400] "INFO / HTTP/1.0" 200 - "-" "ClusterListener/1.0"
+    regex:
+        - '(?<Host>\S+)'                   # host %h
+        - '(?<Identity>\S+)'               # indent %l (unused)
+        - '(?<User>\S+)'                   # user %u
+        - '\[(?<Time>.+)\]'                # time %t
+        - '"(?<Request>.+)"'               # request "%r"
+        - '(?<Status>[0-9]+)'              # status %>s
+        - '(?<Size>\S+)'                   # size %b (careful can be '-')
+        - '"(?<Referer>.*)"'               # referer "%{Referer}i"
+        - '"(?<UserAgent>.*)"'             # user agent "%{User-agent}i"
+    # Define which name in the hash to append contents to based on the regex group
+    #append_key_name: ''
+    # Any mappings not specified are assumed to be of type String
+    mapping:
+        - name: Time
+          data_type: DateTime
+          format: '%d/%b/%Y:%H:%M:%S %z'
+        - name: Status
+          data_type: Integer
+        - name: Size
+          data_type: Integer
+
+# Data Types supported ['DateTime' 'Integer', 'Float', 'String']
+jboss_log4j_common:
+    db_key:
+        delim: '_'
+        values:
+            - '--key'
+            - '--file'
+    # Delimeter to join the regex array lines.  Apache access is space delimited
+    delim: '\s+'
+    # Regex to be joined to parse each log line
+    # <!-- The default pattern: Date Priority [Category] (Thread) Message\n -->
+    # <param name="ConversionPattern" value="%d %-5p [%c] (%t) %m%n"/>
+    # (?<Date>.*?)\s+(?<Priority>WARN|ERROR|INFO|TRACE|DEBUG)\s+\[(?<Category>.*?)\]\s+\((?<Thread>.*?)\)\s+(?<Message>.*)
+    regex:
+        - '(?<Date>.*?)'
+        - '(?<Priority>WARN|ERROR|INFO|TRACE|DEBUG)'
+        - '\[(?<Category>.*?)\]'
+        - '\((?<Thread>.*?)\)'
+        - '(?<Message>.*)'
+    # For lines that don't match the regex above, define a key name if you want the log line
+    # TO be appended to a previously matched line
+    unmatched_append_key_name: 'Message'
+    # Define a regex pattern to define any matched lines to append to the previously matched line
+    # Example: 03 Oct 2013 20:16:55,309 ERROR [stderr] (MSC service thread 1-3)  at org.jboss.ejb.client.ReceiverInterceptor.handleInvocation(ReceiverInterceptor.java:116)
+    match_forward_regex:
+        - '(?<Date>.*?)'
+        - '(?<Priority>WARN|ERROR|INFO|TRACE|DEBUG)'
+        - '\[(?<Category>.*?)\]'
+        - '\((?<Thread>.*?)\)'
+        - '(?<Message>\tat\s.*?)'
+
+    # Define the hash key to read from, otherwise default to the entire line
+    match_forward_keyname_source: 'Message'
+
+    # Define the hash key to read to, Mandatory if match_forward_regex defined
+    match_forward_keyname_dest: 'Message'
+    # Any mappings not specified are assumed to be of type String
+    #mapping:
+    #    - name: Status
+    #      data_type: Integer
+    #    - name: Size
+    #      data_type: Integer
