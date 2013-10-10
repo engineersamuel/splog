@@ -74,7 +74,7 @@ module Splog
     def parse_datetime(the_input, the_format=nil)
       output = the_input
       begin
-        output = the_format ? DateTime.strptime(the_format, '%d/%b/%Y:%H:%M:%S %z') : DateTime.parse(the_input)
+        output = the_format ? DateTime.strptime(the_input, the_format) : DateTime.parse(the_input)
       rescue => detail
         nil
       end
@@ -174,7 +174,7 @@ module Splog
               while true
                 line = enum_ref.next
                 parsed_line = parse_line(line)
-                if parsed_line.nil?
+                if parsed_line.nil? and @config[@pattern_name]['unmatched_append_key_name']
                   current_working_line[@config[@pattern_name]['unmatched_append_key_name']] << line
                 else
                   break
@@ -188,8 +188,13 @@ module Splog
             end
           end
         rescue StopIteration => e
+          #if both current_working_line and parsed line yield them both as this situation can happen when peeking forward
+          # After an unmatched line
+          if current_working_line and parsed_line
+            y << current_working_line
+            y << parsed_line
           # Yield point for a successfully parsed line
-          if current_working_line
+          elsif current_working_line
             y << current_working_line
           else
             y << parsed_line
@@ -197,65 +202,6 @@ module Splog
         end
       end
     end
-    ## Takes an enum and iterates over it with logic to parse the log lines based on the configuration
-    #def parse(enum_ref)
-    #  e = Enumerator.new do |y|
-    #    # Defines if we are adding to a previous line or working on a single line
-    #    multi_line = false
-    #
-    #    # Defines the current parsed line.  Next linese can be added to this one potentially based on a key
-    #    current_working_line = nil
-    #    begin
-    #      while enum_ref
-    #        line = enum_ref.next
-    #        parsed_line = parse_line(line)
-    #
-    #        # If in a multiline log entry add the parsed_line immediately to the current_working_line before continuing
-    #        if multi_line and parsed_line.nil? and @options[:append]
-    #          if @config[@pattern_name]['unmatched_append_key_name']
-    #            current_working_line[@config[@pattern_name]['unmatched_append_key_name']] << line
-    #          else
-    #            $stderr.write_nonblock("Append is configured but no 'unmatched_append_key_name' set so failing to read log lines")
-    #          end
-    #          # Otherwise not a multiline log statement so set the current working line to the parsed line
-    #        else
-    #          current_working_line = parsed_line
-    #        end
-    #
-    #        next_line = enum_ref.peek
-    #        parsed_next_line = parse_line(next_line)
-    #
-    #        ############################################################################################################
-    #        # Parse unmatched lines
-    #        # If the parsed line is nil and the current working line isn't nil
-    #        # If the next line doesn't parse then consider appending it to the existing line
-    #        # TODO this would be cleaner if I peeked forward until another line matched.  That would make the matched
-    #        # Regex below cleaner as well
-    #        ############################################################################################################
-    #        if parsed_next_line.nil? and not current_working_line.nil?
-    #          multi_line = true
-    #        else
-    #          multi_line = false
-    #        end
-    #        ############################################################################################################
-    #        # Parse matched lines determined by the regex: matched_append_regex
-    #        ############################################################################################################
-    #
-    #        # If this is a multiline log entry continue the while loop
-    #        if multi_line
-    #          next
-    #          # Otherwise print the current_working_line
-    #        else
-    #          # Yield point for a successfully parsed line
-    #          y << current_working_line
-    #        end
-    #      end
-    #    rescue StopIteration => e
-    #      # Yield point for a successfully parsed line
-    #      y << current_working_line
-    #    end
-    #  end
-    #end
 
     def read_input(the_input)
       # Split the input by lines, chomp them, and return an enum
@@ -320,15 +266,24 @@ module Splog
       # Loaded from the dot file and further options determined
       load_dot_file
 
-      @pattern_name = options[:pattern_name]
-      @pattern = @config[options[:pattern_name]]['regex']
-
-      tmp = {}
-      @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
-      @mapping = tmp
+      set_pattern(options)
+      set_mapping(options)
 
       #ap @mapping
       read_log_file(options[:file_name])
+    end
+
+    def set_pattern(options)
+      @pattern_name = options[:pattern_name]
+      @pattern = @config[options[:pattern_name]]['regex']
+      #@pattern_name = options['pattern_name']
+      #@pattern = @config[options['pattern_name']]['regex']
+    end
+
+    def set_mapping(options)
+      tmp = {}
+      @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
+      @mapping = tmp
     end
   end
 end

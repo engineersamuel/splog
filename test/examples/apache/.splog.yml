@@ -1,0 +1,39 @@
+apache_common:
+    delim: '\s+'
+    regex:
+        - '(?<Host>\S+)'                   # host %h
+        - '(?<Identity>\S+)'               # indent %l (unused)
+        - '(?<User>\S+)'                   # user %u
+        - '\[(?<Time>.+)\]'                # time %t
+        - '"(?<Request>.+)"'               # request "%r"
+        - '(?<Status>[0-9]+)'              # status %>s
+        - '(?<Size>\S+)'                   # size %b (careful can be '-')
+        - '"(?<Referer>.*)"'               # referer "%{Referer}i"
+        - '"(?<UserAgent>.*)"'             # user agent "%{User-agent}i"
+    mapping:
+        - name: Time
+          data_type: DateTime
+          format: '%d/%b/%Y:%H:%M:%S %z'
+        - name: Status
+          data_type: Integer
+        - name: Size
+          data_type: Integer
+
+#http://httpd.apache.org/docs/2.4/mod/core.html#errorlogformat
+# Apache logs in mixed formats to the error_log.  The example is very generic and doesn't parse some more of the
+# Expressive debug logging, but that could easily be done
+apache_error:
+    delim: '\s+'
+    #http://regexr.com?36mdo
+    #[Wed Oct 02 19:24:09 2013] [info] LDAP: SSL support available
+    #[Wed Oct 02 19:27:10 2013] [debug] mod_proxy_ajp.c(265): proxy: APR_BUCKET_IS_EOS
+    #- '(?<File>.*?:)'                  # Source file name and line number of the log call
+    regex:
+        - '\[(?<Date>.+)\]'                # time %t -- The first item in the log entry is the date and time of the message
+        - '\[(?<Severity>emerg|alert|crit|error|warn|notice|info|debug|trace)\]'          #        The second item lists the severity of the error being reported
+        - '(?<Module>.*?:)'                # Name of the file/module logging the message depending on the level
+        - '(?<Message>.*)'                 # The actual log message
+    mapping:
+        - name: Date
+          data_type: DateTime
+          format: '%a %b %d %H:%M:%S %Y'

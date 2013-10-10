@@ -1,0 +1,15 @@
+[Wed Oct 02 19:24:09 2013] [info] APR LDAP: Built with OpenLDAP LDAP SDK
+[Wed Oct 02 19:24:09 2013] [info] LDAP: SSL support available
+[Wed Oct 02 19:24:24 2013] [debug] mod_proxy_cluster.c(386): Created: worker for ajp://10.218.6.229:8009 1 (status): 1
+[Wed Oct 02 19:24:24 2013] [debug] mod_proxy_cluster.c(609): update_workers_node starting
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[25] [sm_email] = []
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[26] [sm_full_name] = [Joe Smith]
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[27] [X-Forwarded-For] = [127.0.0.1]
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[28] [X-Forwarded-Host] = [example.com]
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[29] [X-Forwarded-Server] = [localhost]
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(290): ajp_marshal_into_msgb: Header[30] [Connection] = [Keep-Alive]
+[Wed Oct 02 19:27:10 2013] [debug] ajp_header.c(450): ajp_marshal_into_msgb: Done
+[Wed Oct 02 19:27:10 2013] [debug] mod_proxy_ajp.c(265): proxy: APR_BUCKET_IS_EOS
+[Wed Oct 02 19:27:10 2013] [debug] mod_proxy_ajp.c(270): proxy: data to read (max 8186 at 4)
+unparsed line
+[Wed Oct 02 19:27:10 2013] [debug] mod_proxy_ajp.c(285): proxy: got 0 bytes of data
