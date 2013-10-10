@@ -2,6 +2,7 @@
 
 TODO: Write a gem description
 
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -27,3 +28,7 @@ TODO: Write usage instructions here
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+## Dependencies
+
+Splog has been tested on ruby 1.9 but is probably compatible with 1.8+
