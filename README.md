@@ -69,7 +69,7 @@ Disabling the md5 on the hash
 
     head -n 10 examples/access_log | splog -p apache_common -o json -k server_1 --no-md5
 
-Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  The -d mongo says look in yaml for a `db_refs` key of mongo and read the database infomration to persist to.
+Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  The -d mongo says look in yaml for a `db_refs` key of mongo and read the database infomration to persist to.  Since the default is to hash the parsed log entry to `_id` then repeated executions of the command will result in no duplicated mongo entries.
 
     head -n 2 examplese/access_log | splog -p apache_common -o -k server_1 -d mongo
     monogo; use splog; db.logs.find().pretty()
