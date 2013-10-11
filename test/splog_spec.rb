@@ -282,6 +282,19 @@ describe Splog::LogParser do
     pe = parser.parse(e)
     parsed_lines = pe.to_a
     parsed_lines.length.should eql(2)
+  end
 
+  it 'should output verbose logging' do
+    # Match subsequent lines and add them to a previous line
+    test_dir = Dir.pwd.match(/.*?splog$/) ? 'test/' : ''
+    dot_file_path = File.expand_path("#{test_dir}examples/apache/.splog.yml")
+    server_log_name = File.expand_path("#{test_dir}examples/apache/simple_access_log")
+
+    parser = Splog::LogParser.new
+    parser.cli(['-p', 'apache_common','-f', server_log_name, '-c', dot_file_path, '-o', '-v'])
+    e = parser.read_log_file(parser.options[:file_name])
+    # Get an enumerable from the parser
+    pe = parser.parse(e)
+    parsed_lines = pe.to_a
   end
 end

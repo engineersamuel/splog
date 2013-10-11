@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   # Add runtime dependencies
   spec.add_runtime_dependency 'mongo'
   spec.add_runtime_dependency 'bson_ext'
+  spec.add_runtime_dependency 'ruby-progressbar'
 
   # Add development dependencies
   spec.add_development_dependency 'bundler', '~> 1.3'

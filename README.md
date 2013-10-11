@@ -113,7 +113,7 @@ Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  T
 ## Building Splog in Development
 
 `rake build`
-`rake release` 
+`rake release` or `gem push`
 
 #### Examples of executing the bin/splog in development
 
@@ -148,3 +148,13 @@ Parsing a 45m Apache access log:
 ## Dependencies
 
 Splog is compatible with Ruby 1.9+
+
+## Changelog
+
+#### 0.0.3 -- Oct 2013
+
+* Added verbose logging using the ruby progress bar to give clear visual progress
+
+#### 0.0.2 -- Oct 2013
+
+* Initial release

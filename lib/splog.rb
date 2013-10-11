@@ -7,6 +7,7 @@ require 'yaml'
 require 'json'
 require 'enumerator'
 require 'mongo'
+require 'ruby-progressbar'
 
 include Mongo
 
@@ -21,6 +22,10 @@ module Splog
     def initialize
       # Yaml config options
       @config = {}
+
+      # Progress bar to create if in verbose mode
+      @progress_bar = nil
+      @line_count = nil
 
       # Command line options
       @options = {
@@ -335,6 +340,20 @@ module Splog
       File.open(file_name).to_enum
     end
 
+    def update_progress_bar
+      if options[:verbose] and not @progress_bar
+        if @line_count.nil?
+          @progress_bar = ProgressBar.create(:starting_at => 0, :total => @line_count)
+        else
+          @progress_bar = ProgressBar.create(:title => 'Lines Read', :format => '[%a] %c Completed |%b>>%i| %p%% %t [%e]', :total => @line_count)
+        end
+      end
+
+      if @options[:verbose] and @progress_bar
+        @progress_bar.increment
+      end
+    end
+
     def cli(args=nil)
       options = {
         :append => true,
@@ -383,9 +402,16 @@ module Splog
           options[:mongo_coll] = ext || nil
         end
 
+        parser.on('--line-count N', Integer, 'If reading from STDIN (using pipes) Setting the line count will allow splog to better log th progress in verbose mode.  Ex. --line-count `wc -l some.log`') do |ext|
+          options[:line_count] = ext || nil
+        end
+
         parser.on('--[no-]md5', 'When saving to mongo md5 the hash and set that to the _id.  This means repeated parses of the same log file should be idempotent.  Otherwise there will be duplicated lines in the database.') do |ext|
-          p ext
           options[:md5] = ext  # if -m then == true
+        end
+
+        parser.on('-v', 'Verbose logging, recommended in conjunction with -o without any arguments.') do |ext|
+          options[:verbose] = ext  # if -m then == true
         end
 
         parser.on_tail('-h', '--help', '--usage', 'Show this usage message and quit.') do |setting|
@@ -422,13 +448,22 @@ module Splog
         set_pattern(options)
         set_mapping(options)
 
+        # Total line count, if file input we can easily do wc -l on the file.  If $stdin we can allow allow a user defined
+        # input from --line-count `wc -l <filename>`
+
         # Get the enum from the file
         e = nil
         if options[:file_name] and options[:pattern_name]
           e = read_log_file(options[:file_name])
+          @line_count = %x{wc -l #{options[:file_name]}}.split.first.to_i
+
+          # Set the progress bar total
+          #update_progress_bar_total(line_count)
+
         # Or stdin otherwise
         elsif not $stdin.tty?
           e = $stdin.to_enum
+          @line_count = options[:line_count]
         else
           $stderr.print 'Please either specify a -f FILENAME or pipe content to splog.'
           exit
@@ -479,6 +514,8 @@ module Splog
               if options[:db_ref_name]
                 persist_log_entry(parsed_line)
               end
+
+              update_progress_bar
             end
           rescue => detail
             nil
