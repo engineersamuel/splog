@@ -308,8 +308,12 @@ module Splog
         e = nil
         if options[:file_name] and options[:pattern_name]
           e = read_log_file(options[:file_name])
+        # Or stdin otherwise
         elsif not $stdin.tty?
           e = $stdin.to_enum
+        else
+          $stderr.print 'Please either specify a -f FILENAME or pipe content to splog.'
+          exit
         end
 
         # outputting to stdout simply prints 1 parsed line per line
@@ -351,6 +355,8 @@ module Splog
         else
           return read_log_file(options[:file_name])
         end
+      else
+        $stderr.print "Please either specify a -f FILENAME or pipe in content\n"
       end
     end
 
