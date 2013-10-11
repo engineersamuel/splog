@@ -14,7 +14,9 @@ module Splog
 
   class LogParser
     attr_accessor :config, :pattern_name, :options
-    attr_reader :client
+
+    # Define the accessors to mongo, all db writes happen to the configured @coll
+    attr_reader :client, :coll
 
     def initialize
       # Yaml config options
@@ -33,6 +35,72 @@ module Splog
       @mapping_name = nil
       @mapping = nil
 
+      # Define the mongo client, nil by default until first persist to log entry
+      @client = nil
+
+    end
+
+    # http://stackoverflow.com/questions/6461812/creating-an-md5-hash-of-a-number-string-array-or-hash-in-ruby
+    def createsig(body)
+      Digest::MD5.hexdigest( sigflat body )
+    end
+
+    def sigflat(body)
+      if body.class == Hash
+        arr = []
+        body.each do |key, value|
+          arr << "#{sigflat key}=>#{sigflat value}"
+        end
+        body = arr
+      end
+      if body.class == Array
+        str = ''
+        body.map! do |value|
+          sigflat value
+        end.sort!.each do |value|
+          str << value
+        end
+      end
+      if body.class != String
+        body = body.to_s << body.class.to_s
+      end
+      body
+    end
+
+    def persist_log_entry(parsed_line)
+      if @client.nil? and @options[:db_ref_name]
+        db_ref_name = @options[:db_ref_name]
+        host = @config['db_refs'][db_ref_name]['host'] || '127.0.0.1'
+        port = @config['db_refs'][db_ref_name]['port'] || 27107
+        user = @config['db_refs'][db_ref_name]['user'] || nil
+        pass = @config['db_refs'][db_ref_name]['pass'] || nil
+        db = @options[:mongo_db] || @config['db_refs'][db_ref_name]['db']
+        coll = @options[:mongo_coll] || @config['db_refs'][db_ref_name]['collection']
+
+        @client = MongoClient.new(host, port, :pool_size => 1)
+        db = @client.db(db)
+        auth = nil
+        if user and user != '' && pass
+          auth = db.authenticate(user, pass)
+          #p "Authentication to mongo returned: #{auth}"
+        end
+        @coll = db[coll]
+      end
+
+      # Assuming the above is successfull write to the collection, otherwise silently do nothing
+      if @client and @coll
+        # If a key exists add the key to the parsed_line, This can help differentiate the log if not putting each
+        # Log into a unique collection, or even then helps differentiate the logs within a collection.  Ex. if you had
+        # access_log and error_log in the same collection you may want a specific key for each of those
+        parsed_line['key'] = @options[:key] unless @options[:key].nil?
+
+        # If -m --md5 is set then hash the parsed line as the _id
+
+
+        # Otherwise just insert the doc
+        @coll.insert()
+
+      end
     end
 
     def load_dot_file
@@ -140,6 +208,11 @@ module Splog
         $stderr.puts $!
         detail.backtrace.each { |e| $stderr.puts e}
       end
+
+      if @options[:md5] && res && res.length != 0
+        res['_id'] = createsig(res)
+      end
+
       # Return nil if the hash hasn't been populated
       res.length == 0 ? nil : res
     end
@@ -256,7 +329,8 @@ module Splog
     def cli(args=nil)
       options = {
         :append => true,
-        :output => 'stdout'
+        :output => 'stdout',
+        :md5 => true  # By defualt md5 the hash as the unique identifier
       }
       opts = OptionParser.new do |parser|
         parser.banner = 'Usage: splog [options]'
@@ -293,11 +367,16 @@ module Splog
         end
 
         parser.on('--db STR', 'Override the Mongo database defined in ~/.splog.yml') do |ext|
-          options[:mongo_collection] = ext || nil
+          options[:mongo_db] = ext || nil
         end
 
         parser.on('--coll STR', 'Override the Mongo collection defined in ~/.splog.yml') do |ext|
-          options[:mongo_collection] = ext || nil
+          options[:mongo_coll] = ext || nil
+        end
+
+        parser.on('--[no-]md5', 'When saving to mongo md5 the hash and set that to the _id.  This means repeated parses of the same log file should be idempotent.  Otherwise there will be duplicated lines in the database.') do |ext|
+          p ext
+          options[:md5] = ext  # if -m then == true
         end
 
         parser.on_tail('-h', '--help', '--usage', 'Show this usage message and quit.') do |setting|
@@ -350,6 +429,10 @@ module Splog
         if options[:output] == 'stdout'
           # Parse each line of the file through the log parser
           parse(e).each do |parsed_line|
+            # TODO If persisting to mongo do that now
+            persist_log_entry(parsed_line)
+
+            # Then write to stdout
             $stdout.write parsed_line.to_s
             $stdout.write "\n"
           end
@@ -362,6 +445,10 @@ module Splog
           begin
             while true
               parsed_line = pe.next
+
+              # TODO If persisting to mongo do that now
+
+              # Then write to stdout
               $stdout.write parsed_line.to_json
               $stdout.write ',' unless pe.peek.nil?
             end
@@ -376,7 +463,8 @@ module Splog
           pe = parse(e)
           begin
             while true
-              pe.next
+              parsed_line = pe.next
+              # TODO If persisting to mongo do that now
             end
           rescue => detail
             nil
