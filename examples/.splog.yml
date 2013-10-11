@@ -25,7 +25,7 @@ apache_common:
         # to be easier to facilitate mongo searches
         #values:
         #    - '--key'
-
+        
     # Delimeter to join the regex array lines.  Apache access is space delimited
     delim: '\s*'
     # Regex to be joined to parse each log line
@@ -47,7 +47,7 @@ apache_common:
         - name: Time
           data_type: DateTime
           format: '%d/%b/%Y:%H:%M:%S %z'
-        - name: Status
+        - name: Status 
           data_type: Integer
         - name: Size
           data_type: Integer
@@ -90,7 +90,7 @@ jboss_log4j_common:
     match_forward_keyname_dest: 'Message'
     # Any mappings not specified are assumed to be of type String
     #mapping:
-    #    - name: Status
+    #    - name: Status 
     #      data_type: Integer
     #    - name: Size
     #      data_type: Integer

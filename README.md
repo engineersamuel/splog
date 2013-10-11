@@ -53,14 +53,17 @@ TODO: Write usage instructions here
 Note that everything is done in a streaming manner with Ruby Enumerators.  No file is ever read completely.  At most a file is read two lines at a time.  The memory requirements should be minimal due to this.
 
 Parsing a 1m JBoss log to json:
+
     time ruby -Ilib ./bin/splog -p jboss_log4j_common -f ./server.log -o json  
     2.99s user 0.04s system 88% cpu 3.437 total
 
 Parsing a 1m JBoss log to with no writing to stdout:
+
     time ruby -Ilib ./bin/splog -p jboss_log4j_common -f ./server.log -o 
     2.81s user 0.02s system 99% cpu 2.834 total
 
 Parsing a 45m Apache access log:
+
     time ruby -Ilib ./bin/splog -p apache_common -f ./access_log -o
     44.49s user 0.10s system 99% cpu 44.596 total
 

@@ -292,7 +292,7 @@ module Splog
         exit
       end
 
-      if options[:file_name] and options[:pattern_name]
+      if (options[:file_name] and options[:pattern_name]) or not $stdin.tty?
         @options = options
         #ap options
 
@@ -305,7 +305,12 @@ module Splog
 
         #ap @mapping
         # Get the enum from the file
-        e = read_log_file(options[:file_name])
+        e = nil
+        if options[:file_name] and options[:pattern_name]
+          e = read_log_file(options[:file_name])
+        elsif not $stdin.tty?
+          e = $stdin.to_enum
+        end
 
         # outputting to stdout simply prints 1 parsed line per line
         if options[:output] == 'stdout'
