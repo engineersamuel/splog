@@ -68,38 +68,38 @@ module Splog
     end
 
     def persist_log_entry(parsed_line)
-      if @client.nil? and @options[:db_ref_name]
-        db_ref_name = @options[:db_ref_name]
-        host = @config['db_refs'][db_ref_name]['host'] || '127.0.0.1'
-        port = @config['db_refs'][db_ref_name]['port'] || 27107
-        user = @config['db_refs'][db_ref_name]['user'] || nil
-        pass = @config['db_refs'][db_ref_name]['pass'] || nil
-        db = @options[:mongo_db] || @config['db_refs'][db_ref_name]['db']
-        coll = @options[:mongo_coll] || @config['db_refs'][db_ref_name]['collection']
+      begin
+        if @client.nil? and @options[:db_ref_name]
+          db_ref_name = @options[:db_ref_name]
+          host = @config['db_refs'][db_ref_name]['host'] || '127.0.0.1'
+          port = @config['db_refs'][db_ref_name]['port'] || 27107
+          user = @config['db_refs'][db_ref_name]['user'] || nil
+          pass = @config['db_refs'][db_ref_name]['pass'] || nil
+          db = @options[:mongo_db] || @config['db_refs'][db_ref_name]['db']
+          coll = @options[:mongo_coll] || @config['db_refs'][db_ref_name]['collection']
 
-        @client = MongoClient.new(host, port, :pool_size => 1)
-        db = @client.db(db)
-        auth = nil
-        if user and user != '' && pass
-          auth = db.authenticate(user, pass)
-          #p "Authentication to mongo returned: #{auth}"
+          @client = MongoClient.new(host, port, :pool_size => 1)
+          db = @client.db(db)
+          auth = nil
+          if user and user != '' && pass
+            auth = db.authenticate(user, pass)
+            #p "Authentication to mongo returned: #{auth}"
+          end
+          @coll = db[coll]
         end
-        @coll = db[coll]
-      end
 
-      # Assuming the above is successfull write to the collection, otherwise silently do nothing
-      if @client and @coll
-        # If a key exists add the key to the parsed_line, This can help differentiate the log if not putting each
-        # Log into a unique collection, or even then helps differentiate the logs within a collection.  Ex. if you had
-        # access_log and error_log in the same collection you may want a specific key for each of those
-        parsed_line['key'] = @options[:key] unless @options[:key].nil?
-
-        # If -m --md5 is set then hash the parsed line as the _id
-
-
-        # Otherwise just insert the doc
-        @coll.insert()
-
+        # Assuming the above is successfull write to the collection, otherwise silently do nothing
+        if @client and @coll
+          # If an _id exists upsert the doc
+          if parsed_line.has_key?('_id')
+            @coll.update({:_id => parsed_line['_id']}, parsed_line, opts = {:upsert => true})
+          # Otherwise insert the parsed_line which will cause a Mongo specific _id to be generated
+          else
+            @coll.insert(parsed_line)
+          end
+        end
+      rescue => detail
+        $stderr.puts $!
       end
     end
 
@@ -168,6 +168,8 @@ module Splog
       output = the_input
       begin
         output = the_format ? DateTime.strptime(the_input, the_format) : DateTime.parse(the_input)
+        # Convert the time to utc for mongo
+        output = output.nil? ? nil : output.to_time.utc
       rescue => detail
         nil
       end
@@ -207,6 +209,13 @@ module Splog
       rescue => detail
         $stderr.puts $!
         detail.backtrace.each { |e| $stderr.puts e}
+      end
+
+      # If a key exists add the key to the parsed_line, This can help differentiate the log if not putting each
+      # Log into a unique collection, or even then helps differentiate the logs within a collection.  Ex. if you had
+      # access_log and error_log in the same collection you may want a specific key for each of those
+      if @options[:key] && res && res.length != 0
+        res['key'] = @options[:key]
       end
 
       if @options[:md5] && res && res.length != 0
@@ -429,8 +438,9 @@ module Splog
         if options[:output] == 'stdout'
           # Parse each line of the file through the log parser
           parse(e).each do |parsed_line|
-            # TODO If persisting to mongo do that now
-            persist_log_entry(parsed_line)
+            if options[:db_ref_name]
+              persist_log_entry(parsed_line)
+            end
 
             # Then write to stdout
             $stdout.write parsed_line.to_s
@@ -446,7 +456,9 @@ module Splog
             while true
               parsed_line = pe.next
 
-              # TODO If persisting to mongo do that now
+              if options[:db_ref_name]
+                persist_log_entry(parsed_line)
+              end
 
               # Then write to stdout
               $stdout.write parsed_line.to_json
@@ -464,7 +476,9 @@ module Splog
           begin
             while true
               parsed_line = pe.next
-              # TODO If persisting to mongo do that now
+              if options[:db_ref_name]
+                persist_log_entry(parsed_line)
+              end
             end
           rescue => detail
             nil

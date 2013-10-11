@@ -25,6 +25,8 @@ Or install it yourself as:
 
     $ gem install splog
 
+If you want to persist to mongo make sure you have mongo installed: http://www.mongodb.org/downloads
+
 ## Usage
 
 #### Getting started
@@ -53,11 +55,52 @@ Same command with piping
 
 And if you just want to test that the pattern is working with the log file and the log file is huge, head the results and pipe them
 
-    head -n 10 | splog -p apache_common
+    head -n 10 examples/access_log | splog -p apache_common
 
 Of course it isn't so easy to tell from stdout if the logs were parsed, I recommend json for that.  This will give you a clear visual that all logs were parsed as you expected them to be parsed
 
-    head -n 10 | splog -p apache_common -o json | prettyjson
+    head -n 10 examples/access_log  | splog -p apache_common -o json | prettyjson
+
+Setting a custom key on each parsed line
+
+    head -n 10 examples/access_log | splog -p apache_common -o json -k server_1 
+
+Disabling the md5 on the hash
+
+    head -n 10 examples/access_log | splog -p apache_common -o json -k server_1 --no-md5
+
+Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  The -d mongo says look in yaml for a `db_refs` key of mongo and read the database infomration to persist to.
+
+    head -n 2 examplese/access_log | splog -p apache_common -o -k server_1 -d mongo
+    monogo; use splog; db.logs.find().pretty()
+    {
+        "_id" : "e2304358eb62489fae8beb78d90a39a8",
+        "Host" : "127.0.0.103",
+        "Identity" : "-",
+        "User" : "-",
+        "Time" : ISODate("2013-10-03T16:31:00Z"),
+        "Request" : "STATUS / HTTP/1.0",
+        "Status" : 200,
+        "Size" : 86,
+        "Referer" : "-",
+        "UserAgent" : "ClusterListener/1.0",
+        "key" : "server1"
+    }
+    {
+        "_id" : "1507c52901c51ea2cc7ca687187c82e5",
+        "Host" : "127.0.0.224",
+        "Identity" : "-",
+        "User" : "-",
+        "Time" : ISODate("2013-10-03T16:31:03Z"),
+        "Request" : "STATUS / HTTP/1.0",
+        "Status" : 200,
+        "Size" : 86,
+        "Referer" : "-",
+        "UserAgent" : "ClusterListener/1.0",
+        "key" : "server1"
+    }
+
+
 
 ## Contributing
 
@@ -99,4 +142,4 @@ Parsing a 45m Apache access log:
 
 ## Dependencies
 
-Splog has been tested on ruby 1.9 but is probably compatible with 1.8+
+Splog is compatible with Ruby 1.9+
