@@ -27,7 +27,20 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+#### Getting started
+
+* Install splog
+* Create a ~/.splog.yml -- Copy from 
+
+#### Pretty printing json
+
+There are many libraries out there to pretty print json.  I happen to be partial to https://github.com/rafeca/prettyjson
+
+#### Examples
+
+If you want to test a pattern on a large log file just head that file and pipe it to splog
+    
+    head -n 2 path_to/some_log | splog -p apache_common -o json | prettyjson
 
 ## Contributing
 
