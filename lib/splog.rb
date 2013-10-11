@@ -3,15 +3,18 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'splog/version'
 require 'date'
 require 'optparse'
-require 'awesome_print'
 require 'yaml'
 require 'json'
 require 'enumerator'
+require 'mongo'
+
+include Mongo
 
 module Splog
 
   class LogParser
     attr_accessor :config, :pattern_name, :options
+    attr_reader :client
 
     def initialize
       # Yaml config options
@@ -43,6 +46,28 @@ module Splog
         end
       rescue => detail
         $stderr.puts "Unable to find or read #{dot_file}\n"
+        $stderr.puts $!
+        exit
+      end
+    end
+
+    def set_pattern(options)
+      @pattern_name = options[:pattern_name]
+      begin
+        @pattern = @config[options[:pattern_name]]['regex']
+      rescue => detail
+        puts "No pattern matching '#{options[:pattern_name]}' found.  Please choose another name or define this pattern in the your .splog.yaml"
+        exit
+      end
+    end
+
+    def set_mapping(options)
+      begin
+        tmp = {}
+        @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
+        @mapping = tmp
+      rescue => detail
+        puts 'Unable to read the mapping in your .splog.yaml configuration.  Please reference https://github.com/engineersamuel/splog for proper formatting.'
         $stderr.puts $!
         exit
       end
@@ -87,7 +112,6 @@ module Splog
       begin
         #pattern = re.compile(r'\s+'.join(parts)+r'\s*\Z')
         pattern = @config[@pattern_name].has_key?('delim') ? "\\s*#{parts.join(@config[@pattern_name]['delim'])}\\s*" : "\\s*#{parts.join()}\\s*"
-        #ap pattern
         # MULTILINE to match the \n chars
         #Regexp::MULTILINE | Regexp::IGNORECASE
         r = Regexp.new(pattern, Regexp::MULTILINE)
@@ -260,12 +284,20 @@ module Splog
           options[:append] = setting.nil?
         end
 
-        parser.on('-k', '--key [STR]', 'The unique business key to use as the database id.  If none specified an automatic id will be generated.') do |setting|
+        parser.on('-k', '--key STR', 'The unique business key to use as the database id.  If none specified an automatic id will be generated.') do |setting|
           options[:key] = setting
         end
 
-        parser.on('-d', '--database [STR]', 'Specify a database reference defined in ~/.splog.yml to write to') do |ext|
+        parser.on('-d', '--database STR', 'Specify a database reference defined in ~/.splog.yml to write to') do |ext|
           options[:db_ref_name] = ext || nil
+        end
+
+        parser.on('--db STR', 'Override the Mongo database defined in ~/.splog.yml') do |ext|
+          options[:mongo_collection] = ext || nil
+        end
+
+        parser.on('--coll STR', 'Override the Mongo collection defined in ~/.splog.yml') do |ext|
+          options[:mongo_collection] = ext || nil
         end
 
         parser.on_tail('-h', '--help', '--usage', 'Show this usage message and quit.') do |setting|
@@ -294,7 +326,6 @@ module Splog
 
       if (options[:file_name] and options[:pattern_name]) or not $stdin.tty?
         @options = options
-        #ap options
 
         # At this point the options are loaded so load the dot file before continuing so the config can be properly
         # Loaded from the dot file and further options determined
@@ -303,7 +334,6 @@ module Splog
         set_pattern(options)
         set_mapping(options)
 
-        #ap @mapping
         # Get the enum from the file
         e = nil
         if options[:file_name] and options[:pattern_name]
@@ -357,28 +387,6 @@ module Splog
         end
       else
         $stderr.print "Please either specify a -f FILENAME or pipe in content\n"
-      end
-    end
-
-    def set_pattern(options)
-      @pattern_name = options[:pattern_name]
-      begin
-        @pattern = @config[options[:pattern_name]]['regex']
-      rescue => detail
-        puts "No pattern matching '#{options[:pattern_name]}' found.  Please choose another name or define this pattern in the your .splog.yaml"
-        exit
-      end
-    end
-
-    def set_mapping(options)
-      begin
-        tmp = {}
-        @config[options[:pattern_name]]['mapping'].each { |x| tmp[x['name']] = x } unless @config[options[:pattern_name]]['mapping'].nil?
-        @mapping = tmp
-      rescue => detail
-        puts "Unable to read the mapping in your .splog.yaml configuration.  Please reference https://github.com/engineersamuel/splog for proper formatting."
-        $stderr.puts $!
-        exit
       end
     end
   end

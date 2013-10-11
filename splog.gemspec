@@ -8,9 +8,9 @@ Gem::Specification.new do |spec|
   spec.version       = Splog::VERSION
   spec.authors       = ['Samuel Mendenhall']
   spec.email         = ['Samuel.Mendenhall@gmail.com']
-  spec.description   = %q{Parse any log file with user defined regular rules}
-  spec.summary       = %q{Parse any log file with user defined regular rules}
-  spec.homepage      = ''
+  spec.description   = %q{Parse any log file with yml defined regex rules}
+  spec.summary       = %q{Parse any log file with yml defined regex rules}
+  spec.homepage      = 'https://github.com/engineersamuel/splog'
   spec.license       = 'MIT'
 
   spec.files         = `git ls-files`.split($/)
@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Add runtime dependencies
-  spec.add_runtime_dependency 'awesome_print'
+  spec.add_runtime_dependency 'mongo'
 
   # Add development dependencies
   spec.add_development_dependency 'bundler', '~> 1.3'
