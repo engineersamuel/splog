@@ -110,6 +110,11 @@ Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  T
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
 
+## Building Splog in Development
+
+`rake build`
+`rake release` 
+
 #### Examples of executing the bin/splog in development
 
     ruby -Ilib ./bin/splog
