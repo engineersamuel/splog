@@ -30,7 +30,8 @@ Or install it yourself as:
 #### Getting started
 
 * Install splog
-* Create a ~/.splog.yml -- Copy from 
+* Create a ~/.splog.yml -- The quickest approach here is to copy from https://github.com/engineersamuel/splog/blob/master/examples/.splog.yml which has several patterns to get you started.
+* Run splog on a log file!  See the the Example section below.
 
 #### Pretty printing json
 
@@ -40,7 +41,23 @@ There are many libraries out there to pretty print json.  I happen to be partial
 
 If you want to test a pattern on a large log file just head that file and pipe it to splog
     
-    head -n 2 path_to/some_log | splog -p apache_common -o json | prettyjson
+    head -n 2 path_to/some_log | splog -p pattern_name -o json | prettyjson
+
+Parsing an Apache access log to stdout by specifying the filename directly.  The default output is stdout so no need to specify that directly
+
+    splog -p apache_common -f path_to/access_log
+
+Same command with piping
+
+    cat path_to/apache_log | splog -p apache_common
+
+And if you just want to test that the pattern is working with the log file and the log file is huge, head the results and pipe them
+
+    head -n 10 | splog -p apache_common
+
+Of course it isn't so easy to tell from stdout if the logs were parsed, I recommend json for that.  This will give you a clear visual that all logs were parsed as you expected them to be parsed
+
+    head -n 10 | splog -p apache_common -o json | prettyjson
 
 ## Contributing
 
