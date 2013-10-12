@@ -155,10 +155,14 @@ Splog is compatible with Ruby 1.9+
 
 ## Changelog
 
-#### 0.0.3 -- Oct 2013
+#### 0.0.4 -- Oct 11th 2013
+
+* Push a massive speed increase by transpiling the ruby regex to egrep regex and filtering all match forward regexs through open3 to perform pattern matching on.  The main regex for the current line is still ruby since egrep has no such thing as matching groups which are core to my design
+
+#### 0.0.3 -- Oct 11th 2013
 
 * Added verbose logging using the ruby progress bar to give clear visual progress
 
-#### 0.0.2 -- Oct 2013
+#### 0.0.2 -- Oct 11th 2013
 
 * Initial release
