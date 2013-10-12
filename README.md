@@ -126,6 +126,10 @@ Persisting the log to mongo.  Set -o with no arg so that no output to stdout.  T
 
     bundle exec rspec test
 
+#### Profiling in dev
+
+    head -n 10000 path_to/server.log | ruby lib/splog-prof.rb -p apache_common -o -v
+
 #### A few performance measurements
 
 Note that everything is done in a streaming manner with Ruby Enumerators.  No file is ever read completely.  At most a file is read two lines at a time.  The memory requirements should be minimal due to this.

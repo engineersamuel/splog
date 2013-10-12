@@ -201,7 +201,7 @@ describe Splog::LogParser do
     log_entry_two['Category'].should eql('org.jboss.as.connector.subsystems.datasources')
     log_entry_two['Date'].to_s.should eql('2013-10-03 18:33:00 UTC')
     log_entry_two['Date'].should be_a(Time)
-    log_entry_two['Message'].should eql("JBAS010403: Deploying JDBC-compliant driver class org.h2.Driver (version 1.3)\n\n")
+    log_entry_two['Message'].should eql("JBAS010403: Deploying JDBC-compliant driver class org.h2.Driver (version 1.3)\n")
     log_entry_two['Priority'].should eql('INFO')
     log_entry_two['Thread'].should eql('ServerService Thread Pool -- 57')
   end
@@ -219,9 +219,8 @@ describe Splog::LogParser do
     # Get an enumerable from the parser
     pe = parser.parse(e)
     parsed_lines = pe.to_a
-    parsed_lines.length.should eql(4)
+    parsed_lines.length.should eql(5)
   end
-
 
   it 'should properly hash the 50 lines in the sample access log' do
     # Match subsequent lines and add them to a previous line

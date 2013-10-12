@@ -8,6 +8,7 @@ require 'json'
 require 'enumerator'
 require 'mongo'
 require 'ruby-progressbar'
+require 'open3'
 
 include Mongo
 
@@ -127,9 +128,39 @@ module Splog
     def set_pattern(options)
       @pattern_name = options[:pattern_name]
       begin
+        # MULTILINE to match the \n chars
+        #Regexp::MULTILINE | Regexp::IGNORECASE
         @pattern = @config[options[:pattern_name]]['regex']
+        delim =  @config[@pattern_name].nil? ? "\\s+" : @config[@pattern_name]['delim']
+        c = "#{@pattern.join(delim)}"
+        # Remove the grouped named
+        @pattern_egrep = 'egrep "' + c.gsub(/\?<.*?>/, '') + '"'
+        r = Regexp.new(c, Regexp::MULTILINE)
+        @pattern = r
       rescue => detail
+        #detail.backtrace.each { |e| $stderr.puts e}
+        #$stderr.puts $!
         puts "No pattern matching '#{options[:pattern_name]}' found.  Please choose another name or define this pattern in the your .splog.yaml"
+        exit
+      end
+    end
+
+    def set_pattern_match_forward
+      begin
+        @pattern_match_forward = @config[options[:pattern_name]]['match_forward_regex']
+        # since this is optional only compile if set
+        if @pattern_match_forward
+          delim =  @config[@pattern_name].nil? ? "\\s+" : @config[@pattern_name]['delim']
+          # Remove the grouped named
+          c = "#{@pattern_match_forward.join(delim)}"
+          r = Regexp.new(c, Regexp::MULTILINE)
+          @pattern_match_forward_egrep = 'egrep "' + c.gsub(/\?<.*?>/, '') + '"'
+          @pattern_match_forward = r
+        end
+      rescue => detail
+        #detail.backtrace.each { |e| $stderr.puts e}
+        $stderr.puts $!
+        #puts "No pattern matching '#{options[:pattern_name]}' found.  Please choose another name or define this pattern in the your .splog.yaml"
         exit
       end
     end
@@ -183,14 +214,17 @@ module Splog
 
     def parse_line(line, opts={})
       res = {}
-      parts = opts[:parts] || @config[@pattern_name]['regex']
+      #parts = opts[:parts] || @config[@pattern_name]['regex']
       begin
-        #pattern = re.compile(r'\s+'.join(parts)+r'\s*\Z')
-        pattern = @config[@pattern_name].has_key?('delim') ? "\\s*#{parts.join(@config[@pattern_name]['delim'])}\\s*" : "\\s*#{parts.join()}\\s*"
-        # MULTILINE to match the \n chars
-        #Regexp::MULTILINE | Regexp::IGNORECASE
-        r = Regexp.new(pattern, Regexp::MULTILINE)
-        m = r.match(line)
+        #pattern = @config[@pattern_name].has_key?('delim') ? "\\s*#{parts.join(@config[@pattern_name]['delim'])}\\s*" : "\\s*#{parts.join()}\\s*"  # was working line
+        #r = Regexp.new(pattern, Regexp::MULTILINE)
+        #m = r.match(line)
+
+        if opts[:regex]
+          m = opts[:regex].match(line)
+        else
+          m = @pattern.match(line)
+        end
         res = {}
         if m
           m.names.each do |group_name|
@@ -239,17 +273,40 @@ module Splog
         parsed_line = nil
         begin
           while enum_ref
+
             line = enum_ref.next
             parsed_line = parse_line(line)
 
             next_line = enum_ref.peek
             # Pass in the 'match_forward_regex' if it exists so the next line can be evaluated in this context
-            parsed_next_line = @config[@pattern_name]['match_forward_regex'].nil? ? parse_line(next_line) : parse_line(next_line, {:parts => @config[@pattern_name]['match_forward_regex']})
+            #parsed_next_line = @pattern_match_forward.nil? ? parse_line(next_line) : parse_line(next_line, {:regex => @pattern_match_forward})
+            #parsed_next_line_test = @pattern_match_forward.nil? ? parse_line(next_line) : parse_line(next_line, {:regex => @pattern_match_forward})
+
+            # Performance optimization here, don't do a full #match only =~ since not all next lines need to be parsed period
+            #parsed_next_line_test = @pattern_match_forward.nil? ? next_line =~ @pattern : next_line =~ @pattern_match_forward
+            #egrep = "echo \"#{next_line}\" | egrep \"#{@pattern_egrep}\""
+            #egrep_fwd = 'echo ' + next_line + ' | egrep ' + @pattern_match_forward_egrep
+            #p egrep
+            #p egrep_fwd
+            #parsed_next_line_test = @pattern_match_forward.nil? ? `#{egrep}` : `#{egrep_fwd}`
+
+            o, e, s = nil
+            begin
+              o, e, s = Open3.capture3(@pattern_match_forward.nil? ? @pattern_egrep : @pattern_match_forward_egrep, :stdin_data=>next_line)
+            rescue Errno::EPIPE
+              #puts "Connection broke!"
+              nil
+            end
 
             ############################################################################################################
             # If the next line matches the match_forward_regex
             ############################################################################################################
-            if parsed_next_line and @config[@pattern_name]['match_forward_regex']
+            #if parsed_next_line and @config[@pattern_name]['match_forward_regex']
+            #if not parsed_next_line_test.nil? and @config[@pattern_name]['match_forward_regex']
+            if s && s.success? and @config[@pattern_name]['match_forward_regex']
+
+              # Do the actual match now that we know it matches
+              parsed_next_line = @pattern_match_forward.nil? ? parse_line(next_line) : parse_line(next_line, {:regex => @pattern_match_forward})
 
               # If the current_working_line does not yet exist, set it to the latest parsed line
               if current_working_line.nil? and parsed_line
@@ -266,7 +323,8 @@ module Splog
               while true
                 # Only peek here to not advance the enum unnecessarily
                 sub_line = enum_ref.peek
-                parsed_sub_line = @config[@pattern_name]['match_forward_regex'].nil? ? nil : parse_line(sub_line, {:parts => @config[@pattern_name]['match_forward_regex']})
+                #parsed_sub_line = @config[@pattern_name]['match_forward_regex'].nil? ? nil : parse_line(sub_line, {:regex => @pattern_match_forward})
+                parsed_sub_line = @pattern_match_forward.nil? ? nil : parse_line(sub_line, {:regex => @pattern_match_forward})
                 if parsed_sub_line
                   # if matched advance the enum and add the data to the current working line
                   enum_ref.next
@@ -293,8 +351,19 @@ module Splog
               while true
                 # Only peek here to not advance the enum unnecessarily
                 sub_line = enum_ref.peek
-                parsed_sub_line = parse_line(sub_line)
-                if parsed_sub_line.nil? and @config[@pattern_name]['unmatched_append_key_name']
+
+                # TODO this can be optimized too since I'm attmpting to not match it!  I don't even read the parsed_sub_line
+                #parsed_sub_line = parse_line(sub_line)
+                o, e, s = nil
+                begin
+                  o, e, s = Open3.capture3(@pattern_egrep, :stdin_data=>sub_line)
+                rescue Errno::EPIPE
+                  #puts "Connection broke!"
+                  nil
+                end
+
+                #if parsed_sub_line.nil? and @config[@pattern_name]['unmatched_append_key_name']
+                if (s.nil? or not s.success?) && @config[@pattern_name]['unmatched_append_key_name']
                   # if unmatched advance the enum and add the data to the current working line
                   enum_ref.next
                   current_working_line[@config[@pattern_name]['unmatched_append_key_name']] << sub_line
@@ -446,6 +515,7 @@ module Splog
         load_dot_file
 
         set_pattern(options)
+        set_pattern_match_forward
         set_mapping(options)
 
         # Total line count, if file input we can easily do wc -l on the file.  If $stdin we can allow allow a user defined
