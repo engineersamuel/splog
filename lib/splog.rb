@@ -282,14 +282,6 @@ module Splog
             #parsed_next_line = @pattern_match_forward.nil? ? parse_line(next_line) : parse_line(next_line, {:regex => @pattern_match_forward})
             #parsed_next_line_test = @pattern_match_forward.nil? ? parse_line(next_line) : parse_line(next_line, {:regex => @pattern_match_forward})
 
-            # Performance optimization here, don't do a full #match only =~ since not all next lines need to be parsed period
-            #parsed_next_line_test = @pattern_match_forward.nil? ? next_line =~ @pattern : next_line =~ @pattern_match_forward
-            #egrep = "echo \"#{next_line}\" | egrep \"#{@pattern_egrep}\""
-            #egrep_fwd = 'echo ' + next_line + ' | egrep ' + @pattern_match_forward_egrep
-            #p egrep
-            #p egrep_fwd
-            #parsed_next_line_test = @pattern_match_forward.nil? ? `#{egrep}` : `#{egrep_fwd}`
-
             o, e, s = nil
             begin
               o, e, s = Open3.capture3(@pattern_match_forward.nil? ? @pattern_egrep : @pattern_match_forward_egrep, :stdin_data=>next_line)
@@ -302,7 +294,6 @@ module Splog
             # If the next line matches the match_forward_regex
             ############################################################################################################
             #if parsed_next_line and @config[@pattern_name]['match_forward_regex']
-            #if not parsed_next_line_test.nil? and @config[@pattern_name]['match_forward_regex']
             if s && s.success? and @config[@pattern_name]['match_forward_regex']
 
               # Do the actual match now that we know it matches
